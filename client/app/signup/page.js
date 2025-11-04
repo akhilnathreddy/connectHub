@@ -42,7 +42,7 @@ export default function SignupPage() {
 
     try {
       const { confirmPassword, ...signupData } = formData;
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch('https://connecthub-z4a2.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
