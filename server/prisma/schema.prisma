@@ -1,0 +1,110 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  email         String          @unique
+  password      String
+  name          String?
+  avatar        String?
+  bio           String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  sentRequests  FriendRequest[] @relation("Sender")
+  receivedRequests FriendRequest[] @relation("Receiver")
+  friends       UserFriend[]    @relation("User")
+  friendOf      UserFriend[]    @relation("Friend")
+  notifications Notification[]
+  
+  @@map("users")
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  content   String
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  comments  Comment[]
+  likes     Like[]
+  
+  @@map("posts")
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  postId    Int
+  authorId  Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  @@map("comments")
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  postId    Int
+  userId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([postId, userId])
+  @@map("likes")
+}
+
+model FriendRequest {
+  id         Int      @id @default(autoincrement())
+  status     String   @default("pending") // pending, accepted, rejected
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  senderId   Int
+  receiverId Int
+  sender     User     @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model UserFriend {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  userId    Int
+  friendId  Int
+  user      User     @relation("User", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("Friend", fields: [friendId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, friendId])
+  @@map("user_friends")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  type      String   // like, comment, friend_request
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
