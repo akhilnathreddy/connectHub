@@ -3,62 +3,6 @@ const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const router = express.Router();
 
-router.get('/', authMiddleware, async (req, res) => {
-  try {
-    const posts = await req.prisma.post.findMany({
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            email: true
-          }
-        },
-        likes: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
-    const postsWithLikes = posts.map(post => ({
-      ...post,
-      isLiked: post.likes.some(like => like.userId === req.userId),
-      likesCount: post.likes.length,
-      commentsCount: post.comments.length
-    }));
-
-    res.json({ posts: postsWithLikes });
-  } catch (error) {
-    console.error('Get posts error:', error);
-    res.status(500).json({ error: 'Failed to get posts' });
-  }
-});
-
 router.post('/upload-image', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -113,6 +57,62 @@ router.post('/', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Create post error:', error);
     res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    const posts = await req.prisma.post.findMany({
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            email: true
+          }
+        },
+        likes: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        comments: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    const postsWithLikes = posts.map(post => ({
+      ...post,
+      isLiked: post.likes.some(like => like.userId === req.userId),
+      likesCount: post.likes.length,
+      commentsCount: post.comments.length
+    }));
+
+    res.json({ posts: postsWithLikes });
+  } catch (error) {
+    console.error('Get posts error:', error);
+    res.status(500).json({ error: 'Failed to get posts' });
   }
 });
 
