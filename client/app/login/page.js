@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authAPI } from '../../lib/api';
+import { setAuth } from '../../lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,25 +29,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('https://connecthub-z4a2.onrender.com/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Store token and user data
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Redirect to home or feed
+      const data = await authAPI.login(formData);
+      setAuth(data.token, data.user);
       router.push('/feed');
     } catch (err) {
       setError(err.message);

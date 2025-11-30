@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authAPI } from '../../lib/api';
+import { setAuth } from '../../lib/auth';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -27,7 +29,6 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -42,25 +43,8 @@ export default function SignupPage() {
 
     try {
       const { confirmPassword, ...signupData } = formData;
-      const response = await fetch('https://connecthub-z4a2.onrender.com/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(signupData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
-
-      // Store token and user data
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // Redirect to feed
+      const data = await authAPI.register(signupData);
+      setAuth(data.token, data.user);
       router.push('/feed');
     } catch (err) {
       setError(err.message);

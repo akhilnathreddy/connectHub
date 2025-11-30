@@ -4,12 +4,10 @@ const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
 const router = express.Router();
 
-// Register new user
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -18,7 +16,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Check if user already exists
     const existingUser = await req.prisma.user.findUnique({
       where: { email }
     });
@@ -27,10 +24,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
     const user = await req.prisma.user.create({
       data: {
         email,
@@ -46,7 +41,6 @@ router.post('/register', async (req, res) => {
       }
     });
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -64,17 +58,14 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login user
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user
     const user = await req.prisma.user.findUnique({
       where: { email }
     });
@@ -83,14 +74,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET || 'your-secret-key',
@@ -114,7 +103,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get current user (protected route)
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await req.prisma.user.findUnique({

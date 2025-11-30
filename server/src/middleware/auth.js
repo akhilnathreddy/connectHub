@@ -2,7 +2,14 @@ const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1]; // Bearer TOKEN
+    const authHeader = req.headers.authorization;
+    let token;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else if (authHeader) {
+      token = authHeader;
+    }
 
     if (!token) {
       return res.status(401).json({ error: 'Authentication required' });
