@@ -3,6 +3,8 @@ const authMiddleware = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const router = express.Router();
 
+console.log('DEBUG: posts.js route file loaded');
+
 router.post('/upload-image', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -62,7 +64,35 @@ router.post('/', authMiddleware, async (req, res) => {
 
 router.get('/', authMiddleware, async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 5;
+    const cursor = req.query.cursor ? parseInt(req.query.cursor) : undefined;
+    const filter = req.query.filter;
+    const sort = req.query.sort;
+
+    let whereClause = {};
+
+    if (filter === 'friends') {
+      const friendships = await req.prisma.userFriend.findMany({
+        where: {
+          OR: [
+            { userId: req.userId },
+            { friendId: req.userId }
+          ]
+        }
+      });
+      const friendIds = friendships.map(f => f.userId === req.userId ? f.friendId : f.userId);
+      whereClause.authorId = { in: friendIds };
+    }
+
+    const orderBy = sort === 'oldest'
+      ? [{ createdAt: 'asc' }, { id: 'asc' }]
+      : [{ createdAt: 'desc' }, { id: 'desc' }];
+
     const posts = await req.prisma.post.findMany({
+      take: limit + 1,
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      where: whereClause,
       include: {
         author: {
           select: {
@@ -97,10 +127,19 @@ router.get('/', authMiddleware, async (req, res) => {
           }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: orderBy
     });
+
+    let nextCursor = undefined;
+    if (posts.length > limit) {
+      posts.pop();
+      nextCursor = posts[posts.length - 1].id;
+    }
+
+    // Verify limit and pagination
+    console.log('DEBUG: GET /posts request. Limit:', limit, 'Cursor:', cursor);
+    console.log('DEBUG: Fetched posts count:', posts.length);
+    console.log('DEBUG: NextCursor:', nextCursor, 'HasMore:', nextCursor !== undefined);
 
     const postsWithLikes = posts.map(post => ({
       ...post,
@@ -109,7 +148,16 @@ router.get('/', authMiddleware, async (req, res) => {
       commentsCount: post.comments.length
     }));
 
-    res.json({ posts: postsWithLikes });
+    const responseData = {
+      posts: postsWithLikes,
+      pagination: {
+        nextCursor,
+        hasMore: nextCursor !== undefined
+      }
+    };
+    console.log('DEBUG: Sending response:', JSON.stringify({ ...responseData, posts: '...' })); // Don't log full posts
+
+    res.json(responseData);
   } catch (error) {
     console.error('Get posts error:', error);
     res.status(500).json({ error: 'Failed to get posts' });
@@ -330,6 +378,39 @@ router.post('/:id/comment', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Comment error:', error);
     res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+router.delete('/:id/comments/:commentId', authMiddleware, async (req, res) => {
+  try {
+    const { id: postId, commentId } = req.params;
+
+    const comment = await req.prisma.comment.findUnique({
+      where: { id: parseInt(commentId) },
+      include: { post: true }
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    if (comment.postId !== parseInt(postId)) {
+      return res.status(400).json({ error: 'Comment does not belong to this post' });
+    }
+
+    // Allow deleting if user is comment author OR post author
+    if (comment.authorId !== req.userId && comment.post.authorId !== req.userId) {
+      return res.status(403).json({ error: 'You can only delete your own comments or comments on your posts' });
+    }
+
+    await req.prisma.comment.delete({
+      where: { id: parseInt(commentId) }
+    });
+
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
 

@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
 const API_BASE_URL = API_URL.replace('/api', '');
 
 export const getImageUrl = (imagePath) => {
@@ -16,7 +16,7 @@ const getToken = () => {
 
 const apiRequest = async (endpoint, options = {}) => {
   const token = getToken();
-  
+
   const config = {
     ...options,
     headers: {
@@ -31,7 +31,7 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, config);
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || 'Request failed');
@@ -45,30 +45,30 @@ export const authAPI = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  
+
   login: (data) => apiRequest('/auth/login', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  
+
   getMe: () => apiRequest('/auth/me'),
 };
 
 export const usersAPI = {
   search: (query) => apiRequest(`/users/search?q=${encodeURIComponent(query)}`),
-  
+
   getById: (id) => apiRequest(`/users/${id}`),
-  
+
   update: (id, data) => apiRequest(`/users/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
-  
+
   uploadAvatar: async (id, file) => {
     const token = getToken();
     const formData = new FormData();
     formData.append('avatar', file);
-    
+
     const response = await fetch(`${API_URL}/users/${id}/avatar`, {
       method: 'POST',
       headers: {
@@ -76,67 +76,77 @@ export const usersAPI = {
       },
       body: formData,
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Upload failed' }));
       throw new Error(error.error || 'Upload failed');
     }
-    
+
     return response.json();
   },
-  
+
   getFriends: (id) => apiRequest(`/users/${id}/friends`),
-  
+
   sendFriendRequest: (id) => apiRequest(`/users/${id}/friend-request`, {
     method: 'POST',
   }),
-  
+
   acceptFriendRequest: (id) => apiRequest(`/users/friend-requests/${id}/accept`, {
     method: 'PATCH',
   }),
-  
+
   rejectFriendRequest: (id) => apiRequest(`/users/friend-requests/${id}/reject`, {
     method: 'PATCH',
   }),
-  
+
   getFriendRequests: () => apiRequest('/users/friend-requests/all'),
-  
+
   removeFriend: (id) => apiRequest(`/users/${id}/friend`, {
     method: 'DELETE',
   }),
 };
 
 export const postsAPI = {
-  getAll: () => apiRequest('/posts'),
-  
+  getAll: (cursor, limit = 5, filter = 'all', sort = 'latest') => {
+    let url = `/posts?limit=${limit}`;
+    if (cursor) url += `&cursor=${cursor}`;
+    if (filter && filter !== 'all') url += `&filter=${filter}`;
+    if (sort && sort !== 'latest') url += `&sort=${sort}`;
+    return apiRequest(url);
+  },
+
   create: (data) => apiRequest('/posts', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  
+
   update: (id, data) => apiRequest(`/posts/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   }),
-  
+
   delete: (id) => apiRequest(`/posts/${id}`, {
     method: 'DELETE',
   }),
-  
+
   like: (id) => apiRequest(`/posts/${id}/like`, {
     method: 'PATCH',
   }),
-  
+
   comment: (id, content) => apiRequest(`/posts/${id}/comment`, {
     method: 'POST',
     body: JSON.stringify({ content }),
   }),
-  
+
+  deleteComment: (postId, commentId) => apiRequest(`/posts/${postId}/comments/${commentId}`, {
+    method: 'DELETE',
+  }),
+
   uploadImage: async (file) => {
     const token = getToken();
     const formData = new FormData();
     formData.append('image', file);
-    
+
     const response = await fetch(`${API_URL}/posts/upload-image`, {
       method: 'POST',
       headers: {
@@ -144,27 +154,27 @@ export const postsAPI = {
       },
       body: formData,
     });
-    
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Upload failed' }));
       throw new Error(error.error || 'Upload failed');
     }
-    
+
     return response.json();
   },
 };
 
 export const notificationsAPI = {
   getAll: () => apiRequest('/notifications'),
-  
+
   markAsRead: (id) => apiRequest(`/notifications/${id}/read`, {
     method: 'PATCH',
   }),
-  
+
   markAllAsRead: () => apiRequest('/notifications/read-all', {
     method: 'PATCH',
   }),
-  
+
   getUnreadCount: () => apiRequest('/notifications/unread/count'),
 };
 
